@@ -284,7 +284,7 @@ var DM=['今天也要加油哦 ✨','一步一步慢慢来 👣','完成比完�
 var todos=ld(K,[]);
 var trash=ld(KT,[]);
 var xp=ld(KXP,{total:0});
-var ui=Object.assign({starFilter:false,searchOn:false,range:'week',sound:true,particle:true,dark:false,city:''},ld(KU,{}));
+var ui=Object.assign({starFilter:false,searchOn:false,range:'week',sound:true,particle:true,dark:false,city:''},ld(KU,{}));ui.searchOn=false;
 var syncCfg=Object.assign({apiKey:'',binId:'',autoSync:true,enabled:false},ld(KS,{}));
 var lastSync=Number(localStorage.getItem(KLS)||0);
 var view='pending',nextId=1;
@@ -293,7 +293,7 @@ var searchQ='',lastDel=null,undoT=null,addImp=false,recording=false,recog=null;
 var calY=new Date().getFullYear(),calM=new Date().getMonth(),selDate=td();
 var tagEditId=null,lastSwipeT=0;
 
-function sUI(){sv(KU,ui)}
+function sUI(){var u=Object.assign({},ui,{searchOn:false});sv(KU,u)}
 function sTD(){sv(K,todos)}
 function sTR(){sv(KT,trash)}
 
@@ -359,7 +359,7 @@ function getPending(){var l=todos.filter(function(t){return !t.completedDate});i
 function getDone(){var l=todos.filter(function(t){return !!t.completedDate});if(searchQ)l=l.filter(function(t){return matches(t,searchQ)});return l.sort(function(a,b){return a.completedDate>b.completedDate?-1:1})}
 function getTrash(){return trash.slice().sort(function(a,b){return (b.deletedAt||0)-(a.deletedAt||0)})}
 
-function setView(v){view=v;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.v===v)})}
+function setView(v){view=v;document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('on',t.dataset.v===v)});if(v!=='pending'&&v!=='done'&&v!=='trash'&&ui.searchOn)closeSearch()}
 function render(){
 var isL=view==='pending'||view==='done'||view==='trash';
 $('swBox').classList.toggle('on',isL&&ui.searchOn);
