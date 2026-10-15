@@ -329,9 +329,10 @@ function pickMotiv(){var l=DM;$('motiv').textContent=l[new Date().getDate()%l.le
 
 var WC={0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'❄️',80:'🌧',81:'🌧',82:'⛈',95:'⛈',96:'⛈',99:'⛈'};
 var wLoad=false;
-function fetchW(){var c=ld(KW,null);if(c&&Date.now()-c.ts<36e5){showW(c.temp,c.code,c.city);return}if(wLoad)return;wLoad=true;tryIP()}
-function tryIP(){var done=false;function nx(){if(done)return;done=true;tryGeo()}var tm=setTimeout(nx,4000);fetch('https://ipapi.co/json/').then(function(r){return r.json()}).then(function(d){clearTimeout(tm);if(done)return;done=true;if(d&&d.latitude&&d.longitude)queryW(d.latitude,d.longitude,d.city||'');else tryGeo()}).catch(function(){clearTimeout(tm);nx()})}
-function tryGeo(){if(navigator.geolocation){var done=false;var tm=setTimeout(function(){if(done)return;done=true;seasonOnly()},5000);navigator.geolocation.getCurrentPosition(function(p){clearTimeout(tm);if(done)return;done=true;queryW(p.coords.latitude,p.coords.longitude,'')},function(){clearTimeout(tm);if(done)return;done=true;seasonOnly()},{timeout:4000,maximumAge:600000})}else seasonOnly()}
+function fetchW(){var c=ld(KW,null);if(c&&Date.now()-c.ts<36e5){showW(c.temp,c.code,c.city);return}if(wLoad)return;wLoad=true;tryCity()}
+function tryCity(){var city=(ui.city||'').trim();if(!city){tryGeo();return}var done=false;function nx(){if(done)return;done=true;tryGeo()}var tm=setTimeout(nx,5000);fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(city)+'&count=1&language=zh&format=json').then(function(r){return r.json()}).then(function(d){clearTimeout(tm);if(done)return;done=true;if(d&&d.results&&d.results.length){var r=d.results[0];queryW(r.latitude,r.longitude,r.name||city)}else tryGeo()}).catch(function(){clearTimeout(tm);nx()})}
+function tryGeo(){if(navigator.geolocation){var done=false;var tm=setTimeout(function(){if(done)return;done=true;tryIP()},5000);navigator.geolocation.getCurrentPosition(function(p){clearTimeout(tm);if(done)return;done=true;queryW(p.coords.latitude,p.coords.longitude,'')},function(){clearTimeout(tm);if(done)return;done=true;tryIP()},{timeout:4000,maximumAge:600000})}else tryIP()}
+function tryIP(){var done=false;function nx(){if(done)return;done=true;seasonOnly()}var tm=setTimeout(nx,4000);fetch('https://ipapi.co/json/').then(function(r){return r.json()}).then(function(d){clearTimeout(tm);if(done)return;done=true;if(d&&d.latitude&&d.longitude)queryW(d.latitude,d.longitude,d.city||'');else seasonOnly()}).catch(function(){clearTimeout(tm);nx()})}
 function queryW(la,lo,city){fetch('https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo+'&current=temperature_2m,weather_code&timezone=auto').then(function(r){return r.json()}).then(function(d){if(!d||!d.current){seasonOnly();return}var t=Math.round(d.current.temperature_2m),cd=d.current.weather_code;if(city){sv(KW,{temp:t,code:cd,city:city,ts:Date.now()});showW(t,cd,city);wLoad=false}else revGeo(la,lo,t,cd)}).catch(function(){seasonOnly()})}
 function revGeo(la,lo,t,cd){fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+la+'&longitude='+lo+'&localityLanguage=zh').then(function(r){return r.json()}).then(function(g){var cn='';if(g)cn=g.city||g.locality||g.principalSubdivision||'';sv(KW,{temp:t,code:cd,city:cn,ts:Date.now()});showW(t,cd,cn);wLoad=false}).catch(function(){sv(KW,{temp:t,code:cd,city:'',ts:Date.now()});showW(t,cd,'');wLoad=false})}
 function showW(t,c,city){var ic=WC[c]||'🌡';$('wchip').textContent=ic+' '+t+'°'+(city?' '+city:'');wLoad=false}
@@ -439,8 +440,38 @@ $('bAdd').addEventListener('click',submit);
 $('inputBox').addEventListener('keydown',function(e){if(e.key==='Enter')submit()});
 $('bMic').addEventListener('click',startVoice);
 $('bStarAdd').addEventListener('click',function(){addImp=!addImp;$('bStarAdd').classList.toggle('on',addImp);$('bStarAdd').textContent=addImp?'★':'☆'});
-$('bSearch').addEventListener('click',function(){ui.searchOn=!ui.searchOn;sUI();$('swBox').classList.toggle('on',ui.searchOn);if(ui.searchOn)setTimeout(function(){$('swInput').focus()},100);render()});
+function openSearch(){if(ui.searchOn)return;ui.searchOn=true;sUI();$('swBox').classList.add('on');$('bSearch').classList.add('on');setTimeout(function(){$('swInput').focus()},80);render()}
+function closeSearch(){if(!ui.searchOn)return;ui.searchOn=false;searchQ='';$('swInput').value='';sUI();$('swBox').classList.remove('on');$('bSearch').classList.remove('on');render()}
+function toggleSearch(){if(ui.searchOn)closeSearch();else openSearch()}
+$('bSearch').addEventListener('click',function(){toggleSearch()});
 $('swInput').addEventListener('input',function(){searchQ=this.value.trim();if(view==='calendar'||view==='stats')setView('pending');render()});
+
+(function(){
+var sy=0,sx=0,tracking=false,opened=false;
+function onStart(e){
+var el=e.currentTarget;
+if(el.scrollTop>8){tracking=false;return}
+if(ui.searchOn){tracking=false;return}
+var t=e.touches?e.touches[0]:e;
+sy=t.clientY;sx=t.clientX;tracking=true;opened=false
+}
+function onMove(e){
+if(!tracking||opened)return;
+var t=e.touches?e.touches[0]:e;
+var dy=t.clientY-sy,dx=t.clientX-sx;
+if(Math.abs(dx)>Math.abs(dy)+10){tracking=false;return}
+if(dy>55){opened=true;tracking=false;openSearch()}
+}
+function onEnd(){tracking=false;opened=false}
+;['areaList','areaCal','areaTL','areaStat'].forEach(function(id){
+var el=$(id);if(!el)return;
+el.addEventListener('touchstart',onStart,{passive:true});
+el.addEventListener('touchmove',onMove,{passive:true});
+el.addEventListener('touchend',onEnd);
+el.addEventListener('touchcancel',onEnd)
+})
+})();
+
 $('fStar').addEventListener('click',function(){ui.starFilter=!ui.starFilter;sUI();render()});
 
 document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){setView(t.dataset.v);render()})});
